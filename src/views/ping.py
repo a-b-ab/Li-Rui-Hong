@@ -8,4 +8,4 @@
 
 def ping():
     """检查服务是否可用"""
-    return "pong"
+    return "pong pong pong"

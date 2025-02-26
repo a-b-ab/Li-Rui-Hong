@@ -6,8 +6,8 @@
 
 from flask import Blueprint
 
-from views.aqi_trend import aqi_trend
-from views.get import get
+from src.views.aqi_trend_bak import aqi_trend
+from src.views.get import get
 from views.ping import ping
 
 bp_api = Blueprint("bp_api", __name__)
