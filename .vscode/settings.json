@@ -1,0 +1,21 @@
+{
+    "[python]": {
+      "editor.defaultFormatter": "ms-python.black-formatter",
+      "editor.formatOnSave": true,
+      "editor.formatOnType": true,
+      "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+      }
+    },
+    "python.envFile": "${workspaceFolder}/.env",
+    "pylint.args": [
+      "--rcfile=${workspaceFolder}/.pylintrc"
+    ],
+    "python.testing.pytestEnabled": true,
+    "isort.args": [
+      "--settings-path",
+      "${workspaceFolder}/setup.cfg",
+      "--profile",
+      "black"
+    ],
+  }
