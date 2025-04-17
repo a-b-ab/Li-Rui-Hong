@@ -189,12 +189,12 @@ def get_recent_data_from_db():
         mongodb_config=Config.MONGODB_CONFIG
     )
     recent_data_res = mongodb_find_by_page(
-        coll_conn=mongodb_base.get_collection(collection="d_env_huizhou"),
+        coll_conn=mongodb_base.get_collection(collection="d_aqi_huizhou"),
         filter_dict={},
         page=1,
         size=23,
-        sorted_list=[("datetime", -1)],
-        return_dict={"_id": 0, "datetime": 1},
+        sorted_list=[("time_point", -1)],
+        return_dict={"_id": 0, "time_point": 1},
     )
     return (
         recent_data_res.get("info", {}).get("rows", [])
@@ -221,8 +221,13 @@ def run_spider():
 
     new_data = merged_data
 
+    # 提取 recent_data 中的 time_point 列表
+    recent_time_points = [item["time_point"] for item in recent_data]
+
     # 数据去重
-    unique_data = [data for data in new_data if data["time_point"] not in recent_data]
+    unique_data = [
+        data for data in new_data if data["time_point"] not in recent_time_points
+    ]
 
     print(unique_data)
 
