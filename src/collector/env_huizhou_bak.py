@@ -1,82 +1,179 @@
 """
-    Created by crow at 2024-12-09.
-    Description: 获取所有城市的空气质量数据
-    Changelog: all notable changes to this file will be documented
+Created by crow at 2024-12-09.
+Description: 获取惠州的空气质量数据
+Changelog: all notable changes to this file will be documented
 """
+
+import json
+import re
 
 from datetime import datetime
 
 import requests
 
+from lxml import html
+
 from src.config import LOGGER, Config
-from src.databases import MongodbBase, MongodbManager, mongodb_insert_many_data
+from src.databases import (
+    MongodbBase,
+    MongodbManager,
+    mongodb_find_by_page,
+    mongodb_insert_many_data,
+)
 
 
 class GetHuiZhouAQISpider:
     """获取惠州的空气质量数据"""
 
-    start_url = (
-        "https://air.cnemc.cn:18007/CityData/GetAQIDataPublishLiveInfo?cityCode=441300"
-    )
-
     def __init__(self):
-        self.city_info = {}
         self.session = requests.Session()
 
     def fetch_data(self):
-        """获取城市空气质量数据"""
+        """获取数据"""
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Accept": "application/json, text/plain, */*",
+        }
+
+        url = "https://air.cnemc.cn:18007/HourChangesPublish/GetCityRealTimeAqiHistoryByCondition?citycode=441300"
+
+        data_list = []  # 提前定义，防止后面 return 报错
         try:
-            response = self.session.get(self.start_url, timeout=10)
-            if response.status_code == 200:
-                city_data = response.json()
-                if city_data is None:
-                    LOGGER.info("城市没有数据")
-                    return {}
-                else:
-                    city_info = {
-                        "id": city_data["Id"],
-                        "area": city_data["Area"],
-                        "time_point": int(
-                            datetime.strptime(
-                                city_data["TimePoint"], "%Y-%m-%dT%H:%M:%S"
-                            ).timestamp()
-                        ),
-                        "AQI": city_data["AQI"],
-                        "city_code": city_data["CityCode"],
-                        "CO": city_data["CO"],
-                        "NO2": city_data["NO2"],
-                        "O3": city_data["O3"],
-                        "PM10": city_data["PM10"],
-                        "PM2_5": city_data["PM2_5"],
-                        "SO2": city_data["SO2"],
-                        "CO_level": city_data["COLevel"],
-                        "NO2_level": city_data["NO2Level"],
-                        "O3_level": city_data["O3Level"],
-                        "PM10_level": city_data["PM10Level"],
-                        "PM2_5_level": city_data["PM2_5Level"],
-                        "SO2_level": city_data["SO2Level"],
-                        "primarypollutant": city_data["PrimaryPollutant"],
-                        "measure": city_data["Measure"],
-                        "unheathful": city_data["Unheathful"],
-                    }
-                    return city_info
-            else:
-                LOGGER.info(f"获取城市数据失败，状态码：{response.status_code}")
-                return {}
+            resp = requests.post(url, headers=headers, timeout=10, verify=False)
+            print(resp.status_code)
+            data_list = resp.json()
         except requests.exceptions.RequestException as e:
-            LOGGER.error(f"获取城市数据时发生错误：{e}")
-            return {}
+            print(f"请求出错：{e}")
+        return data_list
+
+    def process_air_quality_data(self, data_list):
+        """处理空气质量数据"""
+        processed_data = []
+        for item in data_list:
+            try:
+                # 处理时间戳 - 从/Date(1744783200000)/格式转换
+                time_str = item["TimePoint"]
+                timestamp = (
+                    int(time_str.replace("/Date(", "").replace(")/", "")) // 1000
+                )
+
+                city_info = {
+                    "id": item["Id"],
+                    "time_point": timestamp,
+                    "time_point_str": item["TimePointStr"],
+                    "AQI": item["AQI"],
+                    "city_code": item["CityCode"],
+                    "CO": item["CO"],
+                    "NO2": item["NO2"],
+                    "O3": item["O3"],
+                    "PM10": item["PM10"],
+                    "PM2_5": item["PM2_5"],
+                    "SO2": item["SO2"],
+                    "Quality": item["Quality"],
+                    "primarypollutant": item["PrimaryPollutant"],
+                    "measure": item["Measure"],
+                    "unheathful": item["Unheathful"],
+                }
+                processed_data.append(city_info)
+            except Exception as e:
+                LOGGER.error(f"处理数据时发生错误：{e}")
+                continue
+
+        return processed_data
 
 
-def env_data2mongodb(data: dict):
+class GetHuiZhouHAPSpider:
+    """获取惠州23小时大气压数据"""
+
+    def __init__(self):
+        self.splash_url = "http://0.0.0.0:8050/render.html"
+
+    def fetch_and_process_data(self):
+        """获取并处理数据"""
+        # 请求参数
+        params = {
+            "url": "https://datashareclub.com/weather/%E5%B9%BF%E4%B8%9C/%E6%83%A0%E5%B7%9E/101280301.html",  # 目标网页
+            "wait": 3,  # 等待页面加载的时间（秒）
+        }
+
+        # 发送请求给 Splash
+        response = requests.get(self.splash_url, params=params, timeout=20)
+
+        data_list = []
+
+        # 获取页面内容
+        if response.status_code == 200:
+            page_content = response.text  # 获取 HTML 内容
+            if page_content:
+                tree = html.fromstring(page_content)
+                # 使用 XPath 提取包含js变量的script标签
+                data_content = tree.xpath(
+                    '//script[contains(text(),"var aqi_data")]/text()'
+                )
+                aqi_data = (
+                    re.findall(r"var aqi_data = (\[.*?\]);", data_content[0], re.DOTALL)
+                    if data_content
+                    else []
+                )
+                qy_data = (
+                    re.findall(r"var qy_data = (\[.*?\]);", data_content[0], re.DOTALL)
+                    if data_content
+                    else []
+                )
+
+                # 数据清洗
+                aqi_data = json.loads(aqi_data[0].replace(",]", "]"))
+                qy_data = json.loads(qy_data[0].replace(",]", "]"))
+
+                # 数据提取
+                data_list = [
+                    {
+                        "time_point": int(
+                            datetime.strptime(aqi[0], "%Y-%m-%d %H:%M").timestamp()
+                        ),
+                        "hap": qy[1],
+                    }
+                    for aqi, qy in zip(aqi_data, qy_data)
+                ]
+            else:
+                print("页面内容为空")
+        else:
+            print("请求失败:", response.status_code)
+        return data_list
+
+
+def merge_data(data_source_1, data_source_2):
+    """
+    合并两个数据源的数据，将 data_source_2 的 hap 字段补充到 data_source_1 中。
+
+    :param data_source_1: 第一个数据源的列表
+    :param data_source_2: 第二个数据源的列表
+    :return: 合并后的数据列表
+    """
+    # 将第二个数据源转换为以 time_point 为键的字典
+    data_source_2_dict = {item["time_point"]: item["hap"] for item in data_source_2}
+
+    # 遍历第一个数据源，补充 hap 字段
+    for item in data_source_1:
+        time_point = item["time_point"]
+        # 如果第二个数据源中存在对应的 time_point，则补充 hap 字段
+        if time_point in data_source_2_dict:
+            item["hap"] = data_source_2_dict[time_point]
+        else:
+            item["hap"] = None  # 如果没有对应的 hap 值，可以设置为 None 或其他默认值
+
+    return data_source_1
+
+
+def env_data2mongodb(data):
     """将城市空气质量数据存入mongodb"""
     try:
         mongodb_base: MongodbBase = MongodbManager.get_mongodb_base(
             mongodb_config=Config.MONGODB_CONFIG
         )
-        coll = mongodb_base.get_collection(collection="d_env_city")
+        coll = mongodb_base.get_collection(collection="d_aqi_huizhou")
 
-        insert_res = mongodb_insert_many_data(coll_conn=coll, data=[data])
+        insert_res = mongodb_insert_many_data(coll_conn=coll, data=data)
 
         if insert_res:
             LOGGER.info("页面持久化成功")
@@ -86,68 +183,51 @@ def env_data2mongodb(data: dict):
         LOGGER.error(f"数据插入时发生错误：{e}")
 
 
-class GetHuiZhouHapSpier:
-    """获取惠阳，惠东的大气压数据"""
-
-    start_url = (
-        "https://air.cnemc.cn:18007/CityData/GetAQIDataPublishLiveInfo?cityCode=441300"
+def get_recent_data_from_db():
+    """从数据库获取最近23小时的数据"""
+    mongodb_base: MongodbBase = MongodbManager.get_mongodb_base(
+        mongodb_config=Config.MONGODB_CONFIG
     )
-
-    def __init__(self):
-        self.city_info = {}
-        self.session = requests.Session()
-
-    def fetch_data(self):
-        """获取城市空气质量数据"""
-        try:
-            response = self.session.get(self.start_url, timeout=10)
-            if response.status_code == 200:
-                city_data = response.json()
-                if city_data is None:
-                    LOGGER.info("城市没有数据")
-                    return {}
-                else:
-                    city_info = {
-                        "id": city_data["Id"],
-                        "area": city_data["Area"],
-                        "time_point": int(
-                            datetime.strptime(
-                                city_data["TimePoint"], "%Y-%m-%dT%H:%M:%S"
-                            ).timestamp()
-                        ),
-                        "AQI": city_data["AQI"],
-                        "city_code": city_data["CityCode"],
-                        "CO": city_data["CO"],
-                        "NO2": city_data["NO2"],
-                        "O3": city_data["O3"],
-                        "PM10": city_data["PM10"],
-                        "PM2_5": city_data["PM2_5"],
-                        "SO2": city_data["SO2"],
-                        "CO_level": city_data["COLevel"],
-                        "NO2_level": city_data["NO2Level"],
-                        "O3_level": city_data["O3Level"],
-                        "PM10_level": city_data["PM10Level"],
-                        "PM2_5_level": city_data["PM2_5Level"],
-                        "SO2_level": city_data["SO2Level"],
-                        "primarypollutant": city_data["PrimaryPollutant"],
-                        "measure": city_data["Measure"],
-                        "unheathful": city_data["Unheathful"],
-                    }
-                    return city_info
-            else:
-                LOGGER.info(f"获取城市数据失败，状态码：{response.status_code}")
-                return {}
-        except requests.exceptions.RequestException as e:
-            LOGGER.error(f"获取城市数据时发生错误：{e}")
-            return {}
+    recent_data_res = mongodb_find_by_page(
+        coll_conn=mongodb_base.get_collection(collection="d_env_huizhou"),
+        filter_dict={},
+        page=1,
+        size=23,
+        sorted_list=[("datetime", -1)],
+        return_dict={"_id": 0, "datetime": 1},
+    )
+    return (
+        recent_data_res.get("info", {}).get("rows", [])
+        if recent_data_res.get("status")
+        else []
+    )
 
 
 def run_spider():
-    """运行爬虫"""
-    spider = GetHuiZhouAQISpider()
-    city_data = spider.fetch_data()
-    if city_data:
-        print(city_data)
+    """运行两个爬虫并合并数据"""
+    # 实例化两个爬虫
+    aqi_spider = GetHuiZhouAQISpider()
+    hap_spider = GetHuiZhouHAPSpider()
+
+    # 获取两个数据源的数据
+    city_data = aqi_spider.fetch_data()
+    aqi_data = aqi_spider.process_air_quality_data(city_data)
+    hap_data = hap_spider.fetch_and_process_data()
+
+    # 合并数据
+    merged_data = merge_data(aqi_data, hap_data)
+
+    recent_data = get_recent_data_from_db()
+
+    new_data = merged_data
+
+    # 数据去重
+    unique_data = [data for data in new_data if data["time_point"] not in recent_data]
+
+    print(unique_data)
+
+    # 存储到 MongoDB
+    env_data2mongodb(unique_data)
 
 
 if __name__ == "__main__":
