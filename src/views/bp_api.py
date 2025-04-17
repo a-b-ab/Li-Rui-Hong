@@ -1,12 +1,12 @@
 """
-    Created by lrh at 2024-12-09.
-    Description: Flask 蓝图
-    Changelog: all notable changes to this file will be documented
+Created by lrh at 2024-12-09.
+Description: Flask 蓝图
+Changelog: all notable changes to this file will be documented
 """
 
 from flask import Blueprint
 
-from src.views.aqi_trend_bak import aqi_trend
+from src.views.aqi_trend import aqi_trend
 from src.views.get import get
 from views.ping import ping
 

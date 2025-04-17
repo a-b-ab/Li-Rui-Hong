@@ -1,7 +1,7 @@
 """
-    Created by crow at 2024-12-14.
-    Description: aqi趋势查询接口
-    Changelog: all notable changes to this file will be documented
+Created by crow at 2024-12-14.
+Description: aqi趋势查询接口
+Changelog: all notable changes to this file will be documented
 """
 
 from flask import current_app, request
@@ -22,7 +22,6 @@ from src.databases import MongodbBase, mongodb_find_by_page
 def aqi_trend():
     """查询接口
     {
-        "area":"惠州市",
     }
 
     """
@@ -34,9 +33,8 @@ def aqi_trend():
 
     # 获取基础数据
     post_data = request.json
-    area = post_data.get("area")
     time_list = post_data.get("time_list")
-    size: int = post_data.get("size", 24)
+    size: int = 24
 
     try:
         page: int = int(post_data.get("page", 1))
@@ -54,20 +52,18 @@ def aqi_trend():
 
     filter_dict = {}
 
-    if area:
-        filter_dict["area"] = {"$regex": area}
     if time_list and len(time_list) == 2:
         start_time, end_time = time_list
         filter_dict["time_point"] = {"$gte": start_time, "lte": end_time}
 
     # 获取配置信息
     find_db_res = mongodb_find_by_page(
-        coll_conn=mongodb_base.get_collection(collection="d_env_city"),
+        coll_conn=mongodb_base.get_collection(collection="d_aqi_huizhou"),
         filter_dict=filter_dict,
         size=size,
         page=page,
         sorted_list=[("time_point", -1)],
-        return_dict={"_id": 0, "AQI": 1, "time_point": 1},
+        return_dict={"_id": 0, "AQI": 1, "time_point": 1, "time_point_str": 1},
     )
 
     find_db_data = find_db_res["info"]

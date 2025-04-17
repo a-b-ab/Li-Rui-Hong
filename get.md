@@ -1,7 +1,7 @@
 ### 惠州空气质量和大气压查询接口
 
 数据库
-d_env_huizhou
+d_aqi_huizhou
 
 #### 请求 URL
 

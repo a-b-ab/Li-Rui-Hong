@@ -62,7 +62,6 @@ class GetHuiZhouAQISpider:
                     "time_point": timestamp,
                     "time_point_str": item["TimePointStr"],
                     "AQI": item["AQI"],
-                    "city_code": item["CityCode"],
                     "CO": item["CO"],
                     "NO2": item["NO2"],
                     "O3": item["O3"],

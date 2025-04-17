@@ -1,7 +1,7 @@
 """
-    Created by lrh at 2025-02-26.
-    Description: 查询接口
-    Changelog: all notable changes to this file will be documented
+Created by lrh at 2025-02-26.
+Description: 查询接口
+Changelog: all notable changes to this file will be documented
 """
 
 from flask import current_app, request
@@ -34,10 +34,8 @@ def get():
 
     # 获取基础数据
     post_data = request.json
-    print(post_data)
     time_list = post_data.get("time_list")
     size: int = post_data.get("size", 10)
-    print(time_list)
 
     try:
         page: int = int(post_data.get("page", 1))
@@ -62,11 +60,11 @@ def get():
 
     # 获取配置信息
     find_db_res = mongodb_find_by_page(
-        coll_conn=mongodb_base.get_collection(collection="d_env_huizhou"),
+        coll_conn=mongodb_base.get_collection(collection="d_aqi_huizhou"),
         filter_dict=filter_dict,
         size=size,
         page=page,
-        sorted_list=[("datatime", -1)],
+        sorted_list=[("time_point", -1)],
         return_dict={"_id": 0},
     )
 
