@@ -13,8 +13,8 @@ import requests
 from flask import Flask
 from flask_cors import CORS
 
+from collector.env_huizhou_async import run_spider
 from config import LOGGER, Config
-from tasks.env_huizhou_task_bak import run_scheduler
 from views.bp_api import bp_api
 
 
@@ -57,7 +57,7 @@ def create_app():
         def run_spider_task():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(run_scheduler())
+            loop.run_until_complete(run_spider())
 
         # 在新线程中启动定时任务
         spider_thread = threading.Thread(target=run_spider_task)

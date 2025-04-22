@@ -242,7 +242,7 @@ async def run_scheduler():
         # 添加定时任务 - 每天 0:00 和 12:00 执行
         scheduler.add_job(
             collect_air_quality_data,
-            trigger=CronTrigger(hour="0,12", minute=0),  # 设置为每天 0:00 和 12:00
+            trigger=CronTrigger(hour="0,22", minute=4),  # 设置为每天 0:00 和 12:00
             id="air_quality_task",
             name="惠州空气质量数据采集",
             replace_existing=True,

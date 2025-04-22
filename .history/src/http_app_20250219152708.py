@@ -1,12 +1,9 @@
 """
-Created by crow at 2024-12-05.
-Description: 项目HTTP启动文件
-    - 启动: pipenv run python ./src/http_app.py
-Changelog: all notable changes to this file will be documented
+    Created by crow at 2024-12-05.
+    Description: 项目HTTP启动文件
+        - 启动: pipenv run python ./src/http_app.py
+    Changelog: all notable changes to this file will be documented
 """
-
-import asyncio
-import threading
 
 import requests
 
@@ -14,7 +11,6 @@ from flask import Flask
 from flask_cors import CORS
 
 from config import LOGGER, Config
-from tasks.env_huizhou_task_bak import run_scheduler
 from views.bp_api import bp_api
 
 
@@ -52,19 +48,6 @@ def create_app():
         LOGGER.info(
             f"Service({Config.PROJECT_NAME} started successfully:{api_version})"
         )
-
-        # 启动定时任务
-        def run_spider_task():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(run_scheduler())
-
-        # 在新线程中启动定时任务
-        spider_thread = threading.Thread(target=run_spider_task)
-        spider_thread.daemon = (
-            True  # 设置为守护线程，这样主程序退出时，这个线程也会退出
-        )
-        spider_thread.start()
 
     flask_app.register_blueprint(bp_api)
     return flask_app
