@@ -52,9 +52,9 @@ def aqi_trend():
 
     filter_dict = {}
 
-    if time_list and len(time_list) == 2:
+    if time_list:
         start_time, end_time = time_list
-        filter_dict["time_point"] = {"$gte": start_time, "lte": end_time}
+        filter_dict["time_point"] = {"$gte": start_time, "$lte": end_time}
 
     # 获取配置信息
     find_db_res = mongodb_find_by_page(

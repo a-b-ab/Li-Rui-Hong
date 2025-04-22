@@ -1,7 +1,7 @@
 """
-    Created by crow at 2024-12-05.
-    Description: MongoDB 操作类，使用前请确保 pipenv install pymongo
-    Changelog: all notable changes to this file will be documented
+Created by crow at 2024-12-05.
+Description: MongoDB 操作类，使用前请确保 pipenv install pymongo
+Changelog: all notable changes to this file will be documented
 """
 
 

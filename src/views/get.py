@@ -55,8 +55,7 @@ def get():
 
     if time_list:
         start_time, end_time = time_list
-        print(start_time, end_time)
-        filter_dict["datetime"] = {"$gte": start_time, "$lte": end_time}
+        filter_dict["time_point"] = {"$gte": start_time, "$lte": end_time}
 
     # 获取配置信息
     find_db_res = mongodb_find_by_page(
