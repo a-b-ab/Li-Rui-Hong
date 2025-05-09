@@ -9,6 +9,7 @@ from flask import Blueprint
 from src.views.aqi_trend import aqi_trend
 from src.views.get import get
 from views.ping import ping
+from views.predict import predict
 from views.spider import spider
 
 bp_api = Blueprint("bp_api", __name__)
@@ -17,3 +18,4 @@ bp_api.add_url_rule("/ping", view_func=ping, methods=["GET"])
 bp_api.add_url_rule("/get", view_func=get, methods=["POST"])
 bp_api.add_url_rule("/aqi_trend", view_func=aqi_trend, methods=["POST"])
 bp_api.add_url_rule("/spider", view_func=spider, methods=["POST"])
+bp_api.add_url_rule("/predict", view_func=predict, methods=["POST"])
