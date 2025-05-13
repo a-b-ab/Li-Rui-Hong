@@ -1,11 +1,15 @@
-import torch
+import os
+import time
+
+from datetime import datetime, timedelta
+
 import numpy as np
 import pandas as pd
-from models.cnn_gru import CNNGRU
-from utils.data_processor import DataProcessor
-from datetime import datetime, timedelta
-import time
-import os
+import torch
+
+from src.AQI_display.models.cnn_gru import CNNGRU
+from src.AQI_display.utils.data_processor import DataProcessor
+
 
 def predict_future(model, last_sequence, device, data_processor):
     model.eval()
@@ -16,12 +20,13 @@ def predict_future(model, last_sequence, device, data_processor):
         predictions = model(input_sequence)
         # 将预测移回CPU并转换为numpy数组
         predictions = predictions.cpu().numpy()[0]
-    
+
     return predictions
+
 
 def calculate_measure(row):
     # 根据AQI值计算measure（活动建议）
-    aqi = row['AQI']
+    aqi = row["AQI"]
     if aqi <= 50:
         return "各类人群可正常活动"
     elif aqi <= 100:
@@ -35,9 +40,10 @@ def calculate_measure(row):
     else:
         return "儿童、老年人和病人应当留在室内，避免体力消耗，一般人群应避免户外活动"
 
+
 def calculate_unhealthful(row):
     # 根据AQI值计算unhealthful（空气质量状况描述）
-    aqi = row['AQI']
+    aqi = row["AQI"]
     if aqi <= 50:
         return "空气质量令人满意，基本无空气污染"
     elif aqi <= 100:
@@ -51,38 +57,39 @@ def calculate_unhealthful(row):
     else:
         return "健康人群运动耐受力降低，有明显强烈症状，提前出现某些疾病"
 
+
 def main():
     # 设置设备
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
-    
+
     # 获取当前文件的目录
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    data_path = os.path.join(current_dir, 'data', 'd_aqi_huizhou.json')
-    model_path = os.path.join(current_dir, 'best_model.pth')
-    
+    data_path = os.path.join(current_dir, "data", "d_aqi_huizhou.json")
+    model_path = os.path.join(current_dir, "best_model.pth")
+
     # 数据处理
     data_processor = DataProcessor(data_path)
-    
+
     # 获取最后72小时的序列数据
     last_sequence = data_processor.get_last_sequence()
-    
+
     # 使用当前时间作为预测起点
     current_time = datetime.now().replace(minute=0, second=0, microsecond=0)
     print(f"\n使用当前时间 {current_time.strftime('%Y-%m-%d %H:00:00')} 作为预测起点")
-    
+
     # 模型参数
     input_channels = last_sequence.shape[1]  # 特征数量
     sequence_length = last_sequence.shape[0]  # 序列长度
     output_dim = 9  # AQI + 6个特征 + Quality + hap
     prediction_length = 24  # 预测未来24小时
-    
+
     print(f"\n模型参数:")
     print(f"输入特征数: {input_channels}")
     print(f"输入序列长度: {sequence_length}")
     print(f"输出维度: {output_dim}")
     print(f"预测长度: {prediction_length}")
-    
+
     # 初始化模型
     model = CNNGRU(
         input_channels=input_channels,
@@ -90,9 +97,9 @@ def main():
         hidden_dim=64,  # 使用与训练时相同的隐藏层维度
         num_layers=2,
         output_dim=output_dim,
-        prediction_length=prediction_length
+        prediction_length=prediction_length,
     ).to(device)
-    
+
     # 加载训练好的模型
     try:
         checkpoint = torch.load(model_path, map_location=device)
@@ -104,57 +111,64 @@ def main():
         print(f"Model path: {model_path}")
         print(f"Device: {device}")
         return
-    
+
     # 生成预测
     predictions = predict_future(model, last_sequence, device, data_processor)
-    
+
     # 反归一化预测结果
-    feature_names = ['AQI', 'PM2_5', 'PM10', 'SO2', 'NO2', 'CO', 'O3', 'hap', 'Quality']
+    feature_names = ["AQI", "PM2_5", "PM10", "SO2", "NO2", "CO", "O3", "hap", "Quality"]
     predictions_dict = {}
-    
+
     for i, feature in enumerate(feature_names[:-1]):  # 除了Quality
         if feature in data_processor.scalers:
-            predictions_dict[feature] = data_processor.scalers[feature].inverse_transform(
-                predictions[:, i].reshape(-1, 1)
-            ).flatten()
+            predictions_dict[feature] = (
+                data_processor.scalers[feature]
+                .inverse_transform(predictions[:, i].reshape(-1, 1))
+                .flatten()
+            )
             # 对hap进行四舍五入处理为整数
-            if feature == 'hap':
-                predictions_dict[feature] = np.round(predictions_dict[feature]).astype(int)
+            if feature == "hap":
+                predictions_dict[feature] = np.round(predictions_dict[feature]).astype(
+                    int
+                )
         else:
             predictions_dict[feature] = predictions[:, i]
-    
+
     # Quality预测（取最接近的整数作为分类）
-    predictions_dict['Quality'] = np.round(predictions[:, -1]).astype(int)
-    
+    predictions_dict["Quality"] = np.round(predictions[:, -1]).astype(int)
+
     # 创建时间索引（从当前时间开始）
-    time_index = [current_time + timedelta(hours=i) for i in range(1, prediction_length + 1)]
-    
+    time_index = [
+        current_time + timedelta(hours=i) for i in range(1, prediction_length + 1)
+    ]
+
     # 创建DataFrame
     df_predictions = pd.DataFrame(predictions_dict, index=time_index)
-    
+
     # 将Quality数值转换回文本标签
     quality_labels = {
-        0: '优',
-        1: '良',
-        2: '轻度污染',
-        3: '中度污染',
-        4: '重度污染',
-        5: '严重污染'
+        0: "优",
+        1: "良",
+        2: "轻度污染",
+        3: "中度污染",
+        4: "重度污染",
+        5: "严重污染",
     }
-    df_predictions['Quality'] = df_predictions['Quality'].map(quality_labels)
-    
+    df_predictions["Quality"] = df_predictions["Quality"].map(quality_labels)
+
     # 添加measure和unhealthful列
-    df_predictions['measure'] = df_predictions.apply(calculate_measure, axis=1)
-    df_predictions['unhealthful'] = df_predictions.apply(calculate_unhealthful, axis=1)
-    
+    df_predictions["measure"] = df_predictions.apply(calculate_measure, axis=1)
+    df_predictions["unhealthful"] = df_predictions.apply(calculate_unhealthful, axis=1)
+
     # 保存预测结果
-    output_file = os.path.join(current_dir, 'predictions_24h.csv')
-    df_predictions.to_csv(output_file, encoding='utf-8-sig')
+    output_file = os.path.join(current_dir, "predictions_24h.csv")
+    df_predictions.to_csv(output_file, encoding="utf-8-sig")
     print(f"\n预测结果已保存到 {output_file}")
-    
+
     # 打印预测结果
     print(f"\n从当前时间开始的未来24小时预测结果:")
     print(df_predictions)
 
-if __name__ == '__main__':
-    main() 
+
+if __name__ == "__main__":
+    main()
