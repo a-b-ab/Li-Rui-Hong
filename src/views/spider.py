@@ -7,7 +7,7 @@ Changelog: all notable changes to this file will be documented
 from flask import current_app
 from flask_cors import cross_origin
 
-from collector.env_huizhou_bak import (
+from src.collector.env_huizhou_bak import (
     GetHuiZhouAQISpider,
     GetHuiZhouHAPSpider,
     env_data2mongodb,
@@ -15,6 +15,7 @@ from collector.env_huizhou_bak import (
     merge_data,
 )
 from src.common import ResponseCode, ResponseField, ResponseReply, response_handle
+from src.utils.data_export import data2json
 
 
 @cross_origin()
@@ -59,6 +60,10 @@ def spider():
         # 存储到 MongoDB
         app_logger.info("开始存储数据到 MongoDB...")
         env_data2mongodb(unique_data)
+
+        # 获取数据后同步到预测模型
+        data2json()
+        app_logger.info("数据已导出到 JSON 文件")
 
         # 返回成功结果
         app_logger.info("爬虫执行成功！")

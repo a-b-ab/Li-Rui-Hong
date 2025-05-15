@@ -85,7 +85,7 @@ class GetHuiZhouHAPSpider:
     """获取惠州23小时大气压数据"""
 
     def __init__(self):
-        self.splash_url = "http://0.0.0.0:8050/render.html"
+        self.splash_url = "http://127.0.0.1:8050/render.html"
 
     def fetch_and_process_data(self):
         """获取并处理数据"""

@@ -26,7 +26,7 @@ def create_app():
     CORS(flask_app)
 
     with flask_app.app_context():
-        from databases import MongodbBase, MongodbManager
+        from src.databases import MongodbBase, MongodbManager
 
         # 初始化 MongoDB
         mongodb_base: MongodbBase = MongodbManager.get_mongodb_base(

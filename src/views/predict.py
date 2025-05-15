@@ -17,19 +17,18 @@ def predict():
     try:
         prediction_results = aqi_predict()
 
-        print(prediction_results)
-        prediction_results = prediction_results.iloc[1:].reset_index(drop=True)
+        predictions_list = prediction_results.reset_index().to_dict(orient="records")
 
-        # 格式化预测结果为字典列表
-        formatted_results = prediction_results.to_dict(orient="records")
+        for record in predictions_list:
+            record["time"] = record["index"].strftime("%Y-%m-%d %H:%M:%S")
+            del record["index"]
 
         result = {
-            ResponseField.DATA: formatted_results,
+            ResponseField.DATA: predictions_list,
             ResponseField.INFO: ResponseReply.SUCCESS,
             ResponseField.STATUS: ResponseCode.SUCCESS,
         }
 
-        print(formatted_results)
         # 返回格式化后的结果
         return response_handle(request=current_app, dict_value=result)
 

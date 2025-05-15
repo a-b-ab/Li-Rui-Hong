@@ -59,6 +59,7 @@ def calculate_unhealthful(row):
 
 
 def main():
+    """主函数"""
     # 设置设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -84,7 +85,7 @@ def main():
     output_dim = 9  # AQI + 6个特征 + Quality + hap
     prediction_length = 24  # 预测未来24小时
 
-    print(f"\n模型参数:")
+    print("\n模型参数:")
     print(f"输入特征数: {input_channels}")
     print(f"输入序列长度: {sequence_length}")
     print(f"输出维度: {output_dim}")
@@ -105,7 +106,7 @@ def main():
         checkpoint = torch.load(model_path, map_location=device)
         model.load_state_dict(checkpoint)
         print("Successfully loaded model from best_model.pth")
-        print(f"Model parameters loaded successfully")
+        print("Model parameters loaded successfully")
     except Exception as e:
         print(f"Error loading model: {str(e)}")
         print(f"Model path: {model_path}")
@@ -166,8 +167,9 @@ def main():
     print(f"\n预测结果已保存到 {output_file}")
 
     # 打印预测结果
-    print(f"\n从当前时间开始的未来24小时预测结果:")
+    print("\n从当前时间开始的未来24小时预测结果:")
     print(df_predictions)
+    return df_predictions
 
 
 if __name__ == "__main__":
